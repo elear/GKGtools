@@ -33,15 +33,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-use Net::DNS::RR;
 use GKG::GKGtools qw(readconf parse_dnskey get_keys write_dsrec);
+
+if ( $#ARGV > -1 ) {
+    print "Usage: $0 with no arguments.  Input a single DNSKEY record";
+    exit -1;
+}
 
 ($username, $password) = readconf;
 
-# Get the record
 
-
-@drec=parse_dnskey(STDIN);
+@drec=parse_dnskey(STDIN); # get the record
 
 $oldrec=get_keys($drec[0]->{"rrdn"},$username,$password);
 

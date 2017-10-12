@@ -35,20 +35,27 @@
 
 use GKG::GKGtools qw(readconf get_keys);
 
-($username, $password) = readconf;
-
-$domain=$ARGV[0];
-$oldrec= get_keys($domain,$username,$password);
-
-if ( $oldrec == undef || !exists($oldrec->[0]{digest})) {
-    print "No records for domain $domain found\n";
+if ( $#ARGV < 0 ) {
+    print "Usage: $0 domain {, domain, ...}\n";
     exit -1;
 }
-print "Type\tAlgorithm\tTag\tLifetime\tdigest\n";
-for ($i=0; exists($oldrec->[$i]{digest}); $i++) {
-    print $oldrec->[$i]{digestType} . "\t" .
-	$oldrec->[$i]{algorithm} . "\t\t" .
-	$oldrec->[$i]{keyTag} . "\t" .
-	$oldrec->[$i]{maxSigLife} . "\t" .
-	$oldrec->[$i]{digest} . "\n";
+($username, $password) = readconf;
+
+while ( $#ARGV >= 0 ) {
+    my $i;
+    my $domain=shift(@ARGV);
+    my $oldrec= get_keys($domain,$username,$password);
+
+    if ( $oldrec == undef || !exists($oldrec->[0]{digest})) {
+	print "No records for domain $domain found\n";
+	next;
+    }
+    print "${domain}:\nType\tAlgorithm\tTag\tLifetime\tdigest\n";
+    for ($i=0; exists($oldrec->[$i]{digest}); $i++) {
+	print $oldrec->[$i]{digestType} . "\t" .
+	    $oldrec->[$i]{algorithm} . "\t\t" .
+	    $oldrec->[$i]{keyTag} . "\t" .
+	    $oldrec->[$i]{maxSigLife} . "\t" .
+	    $oldrec->[$i]{digest} . "\n";
+    }
 }
