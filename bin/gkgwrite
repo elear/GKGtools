@@ -1,0 +1,61 @@
+#!/usr/bin/perl
+#
+# Copyright (c) 2017 Eliot Lear.
+# All rights reserved.
+#
+# WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+#
+#  EARLY CODE.  This code can and will change, and it should change.
+#  Don't use on important domains YET.
+#  
+# WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+# Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+use Net::DNS::RR;
+use GKG::GKGtools qw(readconf parse_dnskey get_keys write_dsrec);
+
+($username, $password) = readconf;
+
+# Get the record
+
+
+@drec=parse_dnskey(STDIN);
+
+$oldrec=get_keys($drec[0]->{"rrdn"},$username,$password);
+
+if ( $oldrec != undef && exists($oldrec->[0]{digest}) ) {
+    for ($i=0; exists($oldrec->[$i]{digest}); $i++) {
+	for ($j=0; $j <= $#drec ;$j++) {
+	    if ($oldrec->[$i]{keyTag} eq $drec[$j]->{"keytag"} ) {
+		$drec[$j]->{"ignore"}="yes";
+	    }
+	}
+    }
+}
+
+
+if ( write_dsrec($username,$password,@drec) != 0 ) {
+    print "Error.";
+}
