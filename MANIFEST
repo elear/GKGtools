@@ -4,3 +4,6 @@ MANIFEST
 README
 t/GKG-GKGtools.t
 lib/GKG/GKGtools.pm
+bin/gkgls
+bin/gkgdelete
+bin/gkgwrite
