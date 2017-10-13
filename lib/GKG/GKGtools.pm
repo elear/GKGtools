@@ -189,6 +189,7 @@ sub write_dsrec {
 	if ( ! exists($drec[$i]->{"ignore"}) ) {
 	    my $j=mkjson($drec[$i]);
 	    return -1 if post_request($drec[$i]->{"rrdn"},$j,$username,$password) == -1;
+	    $drec[$i]->{"installed"} = "TRUE";
 	} else {
 	    print "ignoring " . $drec[$i]->{"keytag"} . "\n";
 	    $err=-1;

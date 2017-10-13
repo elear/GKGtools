@@ -59,5 +59,14 @@ if ( $oldrec != undef && exists($oldrec->[0]{digest}) ) {
 
 
 if ( write_dsrec($username,$password,@drec) != 0 ) {
-    print "Error.";
+    exit -1;
 }
+
+for ( $i=0; exists($drec[$i]->{"keytag"}); $i++ ) {
+    if ( exists($drec[$i]->{"installed"})) {
+	print "Installed key " . $drec[$i]->{"keytag"} . " type " . 
+	    $drec[$i]->{"digtype"} .   " for domain " .
+	    $drec[$i]->{"rrdn"} . "\n";
+    }
+}
+	
