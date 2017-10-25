@@ -1,8 +1,5 @@
 package GKG::GKGtools;
 
-use 5.022001;
-use strict;
-use warnings;
 use HTTP::Request;
 use LWP::UserAgent;
 use Net::DNS::RR;
@@ -26,9 +23,10 @@ gkg_conffile
 
 our @EXPORT_OK = qw(readconf get_keys write_dsrec delete_old_key parse_dnskey);
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 our $gkg_conffile="/etc/gkg.conf";
+our $maxsiglife = 3456000;
 
 # Preloaded methods go here.
 sub readconf {
@@ -38,21 +36,37 @@ sub readconf {
     my $password;
     my @l;
 
+    if ( $ARGV[0] eq "-c" ) {
+	shift @ARGV;
+	$gkg_conffile=shift(@ARGV);
+    }
+    
     open(C,$gkg_conffile) ||die "$0: $!";
 
 # parse username and password.
 
-    while ( ! ($gotu == 1 && $gotp == 1) && ! eof(C) ) {
+    while (  ! eof(C) ) {
 	$_=<C>;
 	chomp;
-	next if ( ! /^username=.*/ && ! /^password=/ );
 	@l=split(/=/);
-	if ( $l[0] eq "username" ) {
+	my $cmd= lc($l[0]);
+	if ( $cmd !~ /^(username|password|maxsiglife)/) {
+	    print "$0: Unrecognized command $cmd in $gkg_conffile\n";
+	    next;
+	}
+	    
+	if ( $cmd eq "username" ) {
 	    $username=$l[1];
 	    $gotu=1;
-	} else {
+	    next;
+	}
+	if ( $cmd eq "password" ) {
 	    $password=$l[1];
 	    $gotp=1;
+	    next;
+	}
+	if ( $cmd eq "maxsiglife" ) {
+	    $maxsiglife=$l[1];
 	}
     }
 
@@ -136,7 +150,7 @@ sub mkjson {
 	'"digestType":"' . $digtype . '",' . "\n" .
 	'"algorithm":"' . $alg . '",' . "\n" .
         '"keyTag":"' . $keytag . '",' . "\n" .
-	'"maxSigLife":"3456000"' . "\n}\n" ;
+	'"maxSigLife": "' . $maxsiglife . '"' . "\n}\n" ;
     return $jstring;
 }
 

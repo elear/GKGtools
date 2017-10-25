@@ -17,7 +17,11 @@ DEPENDENCIES
 
 This module requires these other modules and libraries:
 
-  blah blah blah
+     Net::DNS::RR
+     JSON::XS
+     HTTP::Request
+     LWP::UserAgent
+
 
 COPYRIGHT AND LICENCE
 
