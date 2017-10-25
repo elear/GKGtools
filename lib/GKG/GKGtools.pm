@@ -4,6 +4,7 @@ use HTTP::Request;
 use LWP::UserAgent;
 use Net::DNS::RR;
 use JSON::XS;
+use POSIX;
 use strict;
 use warnings;
 require Exporter;
@@ -66,7 +67,12 @@ sub readconf {
 	    next;
 	}
 	if ( $cmd eq "maxsiglife" ) {
-	    $maxsiglife=$l[1];
+	    if ( $l[1] =~ /^\d+$/ ) {
+		$maxsiglife=$l[1];
+	    } else {
+		print "$0: bad value for maxsiglife: " . $l[1] . "\n";
+	    }
+	    next;
 	}
     }
 
@@ -260,6 +266,7 @@ It takes the following form:
 
   username=yournamehere
   password=secrethere
+  maxsiglife=nnnnn (integer time in seconds)
 
 =head2 GKGtools::get_keys
 
