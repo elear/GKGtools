@@ -37,9 +37,11 @@ sub readconf {
     my $password;
     my @l;
 
-    if ( $ARGV[0] eq "-c" ) {
-	shift @ARGV;
-	$gkg_conffile=shift(@ARGV);
+    if ( $#ARGV > -1 ) {
+	if ( $ARGV[0] eq "-c" ) {
+		shift @ARGV;
+		$gkg_conffile=shift(@ARGV);
+	}
     }
     
     open(C,$gkg_conffile) ||die "$0: $!";
