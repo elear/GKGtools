@@ -1,8 +1,25 @@
-GKGtools version 0.01
+GKGtools version 0.02
 =========================
 
 Earliest version of GKG.NET tools one can use to update DS records via
 their RESTful interface.  Use at your OWN risk.
+
+Currently several programs are installed:
+
+ o gkgadd expects a single DNSKEY, as output from the ods-enforcer, and
+   adds it to the list of DS keys on GKG.NET.
+ o gkgls domain [domain...] lists out the DS keys for given domains
+ o gkgrm domain HASH removes a DS key matching a given hash
+
+Each of these programs takes an optional [-c conffile].
+
+The conf file contains the following:
+
+username=GKGusername
+password=GKGpassword
+maxsiglife=nnnn
+
+maxsiglife is optional, and the default value is 3456000.
 
 INSTALLATION
 
@@ -12,6 +29,7 @@ To install this module type the following:
    make
    make test
    make install
+
 
 DEPENDENCIES
 
