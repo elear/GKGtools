@@ -261,8 +261,9 @@ of DS records on GKG.NET.  The key ones are as follows:
 
 =head2 GKGtools::readconf
 
-This routine reads the username and password used to call out to GKG.NET.
-These are stored in a file: /etc/gkg.conf.
+This routine reads the username, password, and optionally maxsiglife
+used to call out to GKG.NET.  These are stored in a file:
+/etc/gkg.conf.
 
 It takes the following form:
 
@@ -270,10 +271,33 @@ It takes the following form:
   password=secrethere
   maxsiglife=nnnnn (integer time in seconds)
 
+
+If maxsiglife is ommitted, a value of 3456000 is used.
+
 =head2 GKGtools::get_keys
 
 takes as an argument a domain, username, and password, and returns a
 decoded JSON response.
+
+=head GKGtools::write_dsrec($username, $password, @drec)
+
+This function writes to GKG DS records.  It takes as argument
+$username, $password, and a record that his the following entries:
+
+   rrdn: the RR domain name
+   domain: similar (this may be removed later)
+   keytag: the key tag of the record to be installed
+   alg: algorithm number in play
+   digtype: digest type
+   digest: the value of the digest to be set.
+
+It returns -1 on failure or 0 on success.
+
+=head GKGtools::delete_old_key($domain, $digest, $username, $password)
+
+This routine deletes a key from GKG.NET given all of the above.  It
+returns -1 on failure and 0 on success. It also will output any error
+message returned from GKG.NET.
 
 
 =head2 EXPORT
