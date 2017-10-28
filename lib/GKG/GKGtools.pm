@@ -18,15 +18,15 @@ our @ISA = qw(Exporter);
 # This allows declaration	use GKG::GKGtools ':all';
 # If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
 # will save memory.
-our %EXPORT_TAGS = ( 'all' => [ qw(
-gkg_conffile	
+our %EXPORT_TAGS = ( 'all' => [ qw($gkg_conffile
 ) ] );
 
-our @EXPORT_OK = qw(readconf get_keys write_dsrec delete_old_key parse_dnskey);
+our @EXPORT_OK = qw(readconf get_keys write_dsrec delete_old_key parse_dnskey $gkg_conffile);
+
 
 our $VERSION = '0.02';
 
-our $gkg_conffile="/etc/gkg.conf";
+our $gkg_conffile = "/etc/gkg.conf";
 our $maxsiglife = 3456000;
 
 # Preloaded methods go here.
@@ -37,13 +37,6 @@ sub readconf {
     my $password;
     my @l;
 
-    if ( $#ARGV > -1 ) {
-	if ( $ARGV[0] eq "-c" ) {
-		shift @ARGV;
-		$gkg_conffile=shift(@ARGV);
-	}
-    }
-    
     open(C,$gkg_conffile) ||die "$0: $!";
 
 # parse username and password.
