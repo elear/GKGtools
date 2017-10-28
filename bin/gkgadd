@@ -69,3 +69,80 @@ for ( $i=0; exists($drec[$i]->{"keytag"}); $i++ ) {
     }
 }
 	
+__END__
+
+=head1 NAME
+
+gkgadd - add a DS key to GKG.NET.
+
+=head1 SYNOPSIS
+
+  gkgadd [ -c conffile ] < DSKEY
+
+
+=head1 DESCRIPTION
+
+gkgadd takes as input a DNSKEY record for a Key Signing Key (KSK) and
+installs it on GKG.NET.  N.B., it is critically important that the zone
+be properly signed with the key PRIOR to installing the KSK.  Tools such
+as openddnsec do this for you.
+
+This program reads the username, password, and optionally maxsiglife
+used to call out to GKG.NET.  By default, these are stored in a file:
+/etc/gkg.conf.
+
+It takes the following form:
+
+  username=yournamehere
+  password=secrethere
+  maxsiglife=nnnnn (integer time in seconds)
+
+
+If maxsiglife is ommitted, a value of 3456000 is used.
+
+
+=head1 SEE ALSO
+
+https://www.gkg.net/ws/ds.html
+
+=head1 AUTHOR
+
+Eliot Lear, <lear@ofcourseimright.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2017 by Eliot Lear
+
+All rights reserved.
+
+ WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+
+  EARLY CODE.  This code can and will change, and it should change.
+  Don't use on important domains YET.
+  
+ WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+
+ Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+ Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ POSSIBILITY OF SUCH DAMAGE.
+
+=cut
