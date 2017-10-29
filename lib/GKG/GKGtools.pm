@@ -21,7 +21,7 @@ our @ISA = qw(Exporter);
 our %EXPORT_TAGS = ( 'all' => [ qw($gkg_conffile $admin $enforcer
 ) ] );
 
-our @EXPORT_OK = qw(readconf get_keys write_dsrec delete_old_key parse_dnskey $gkg_conffile $admin $enforcer);
+our @EXPORT_OK = qw(readconf get_keys write_dsrec get_whois delete_old_key parse_dnskey $gkg_conffile $admin $enforcer);
 
 
 our $VERSION = '0.02';
@@ -119,6 +119,25 @@ sub get_keys {
 	return undef;
     }
     return decode_json($response->content);
+}
+
+# get a whois record.
+sub get_whois {
+    my $domain=shift(@_);	# domain name
+    my $username=shift(@_);
+    my $password=shift(@_);
+    my $uri= "https://www.gkg.net/ws/domain/" . $domain . "/whois"; # post uri
+    my $req= HTTP::Request->new('GET', $uri );	     # construct request
+#    $req->header("Accept" => "application/json");
+    my $lwp= LWP::UserAgent->new;
+    $req->authorization_basic($username,$password);
+    my $response=$lwp->request($req); # execute request
+    if ($response->code ne "200" ||
+	$response->content =~ /No match for.*/ ) { 
+#	print "$domain not served by GKG:" .  $response->content;
+	return -1;	      # not our registrar!
+    }
+    return 0;
 }
 
 #
