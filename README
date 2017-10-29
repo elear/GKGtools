@@ -18,8 +18,12 @@ The conf file contains the following:
 username=GKGusername
 password=GKGpassword
 maxsiglife=nnnn
+admin=somebody@example.com
+enforcer=/usr/local/sbin/ods-enforcer
 
 maxsiglife is optional, and the default value is 3456000.
+
+Note that admin and enforcer are currently only used by a OpenDNSSEC wrapper.
 
 INSTALLATION
 

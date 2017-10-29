@@ -10,6 +10,8 @@ WriteMakefile(
          "JSON::XS" => 0,
          "HTTP::Request" => 0,
          "LWP::UserAgent" =>0,
+	 "IPC::Open3" => 0,
+	 "Getopt::Std" => 0,
     },
     ABSTRACT_FROM     => 'lib/GKG/GKGtools.pm', # retrieve abstract from module
     AUTHOR            => 'Eliot Lear <lear@ofcourseimright.com>',

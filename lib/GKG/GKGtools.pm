@@ -18,16 +18,18 @@ our @ISA = qw(Exporter);
 # This allows declaration	use GKG::GKGtools ':all';
 # If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
 # will save memory.
-our %EXPORT_TAGS = ( 'all' => [ qw($gkg_conffile
+our %EXPORT_TAGS = ( 'all' => [ qw($gkg_conffile $admin $enforcer
 ) ] );
 
-our @EXPORT_OK = qw(readconf get_keys write_dsrec delete_old_key parse_dnskey $gkg_conffile);
+our @EXPORT_OK = qw(readconf get_keys write_dsrec delete_old_key parse_dnskey $gkg_conffile $admin $enforcer);
 
 
 our $VERSION = '0.02';
 
 our $gkg_conffile = "/etc/gkg.conf";
 our $maxsiglife = 3456000;
+our $enforcer = "/usr/local/sbin/ods-enforcer";
+our $admin = "root";
 
 # Preloaded methods go here.
 sub readconf {
@@ -55,7 +57,7 @@ sub readconf {
 	chomp;
 	@l=split(/=/);
 	my $cmd= lc($l[0]);
-	if ( $cmd !~ /^(username|password|maxsiglife)/) {
+	if ( $cmd !~ /^(username|password|maxsiglife|admin|enforcer)/) {
 	    print "$0: Unrecognized command $cmd in $gkg_conffile\n";
 	    next;
 	}
@@ -76,6 +78,14 @@ sub readconf {
 	    } else {
 		print "$0: bad value for maxsiglife: " . $l[1] . "\n";
 	    }
+	    next;
+	}
+	if ( $cmd eq "admin" ) {
+	    $admin=$l[1];
+	    next;
+	}
+	if ( $cmd eq "enforcer" ) {
+	    $enforcer=$l[1];
 	    next;
 	}
     }
