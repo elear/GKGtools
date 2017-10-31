@@ -1,0 +1,281 @@
+#!/usr/bin/perl
+#
+# Copyright (c) 2017 Eliot Lear.
+# All rights reserved.
+#
+# WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+#
+#  EARLY CODE.  This code can and will change, and it should change.
+#  Don't use on important domains YET.
+#  
+# WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+# Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+# Use this script to execute gkgwrite, issue ds-seen, and remove
+# old key from parent zone
+
+
+use GKG::GKGtools qw(readconf parse_dnskey get_keys get_whois write_dsrec delete_old_key $gkg_conffile $admin $enforcer);
+use IPC::Open3 qw(open3);
+use Getopt::Std qw(getopts);
+use strict;
+use warnings;
+
+sub HELP_MESSAGE() {
+    print "Usage: $0 [-c config file ] [-kn]\n\t-k keeps old keys\n\t-n is a dry run\n";
+    exit;
+}
+
+sub do_exit {
+    my $val=shift(@_);
+    my $msg=shift(@_);
+    my $opt_n=shift(@_);
+
+    select \*STDOUT;
+    if ( $opt_n ) {
+	print $msg;
+	exit $val;
+    }
+    
+    open(my $m, "|mail $admin");
+    print $m $msg;
+    close($m);
+    exit $val;
+}
+
+our($opt_c, $opt_k, $opt_n);
+my($username, $password, $i, $j, $cmd, $oldrec, @drec, $pid, $input,
+   $output, $err, $status, $diag);
+
+open(my $LOG, '>', \$diag) or die "$0: can't redirect to a variable: $!";
+
+select $LOG;
+
+getopts("c:kn");
+
+if ( defined($opt_c) ) {
+    $gkg_conffile= $opt_c;
+}
+
+
+($username,$password) = readconf;
+
+# get the inbound key
+
+@drec=parse_dnskey(\*STDIN); # get the record
+
+print "New key " . $drec[0]->{"digest"} . " for domain " . $drec[0]->{"rrdn"} . "\n";
+
+# check to see if this domain is managed by GKG.NET.
+
+if ( get_whois($drec[0]->{"rrdn"},$username,$password) != 0) {
+    print "Not a GKG domain.\n";
+    do_exit(0, $diag, $opt_n);
+}
+
+# Keep track of old keys
+$oldrec=get_keys($drec[0]->{"rrdn"},$username,$password);
+
+# mark existing records
+
+if ( ! defined($oldrec) && exists($oldrec->[0]{digest}) ) {
+    for ($i=0; exists($oldrec->[$i]{digest}); $i++) {
+	for ($j=0; $j <= $#drec ;$j++) {
+	    if ($oldrec->[$i]{keyTag} eq $drec[$j]->{"keytag"} ) {
+		$drec[$j]->{"ignore"}="yes";
+	    }
+	}
+    }
+}
+
+# add new keys
+
+if (  defined ($opt_n) ) {
+    print "Dry run.  Skipping write.\n";
+} else {
+    if ( write_dsrec($username,$password,@drec) != 0 ) {
+	do_exit(-1,$diag,$opt_n);
+    }
+    print "Wrote new keys.  Now issuing ds-seen...\n";
+}
+
+# send ds-seen for new keys
+
+$cmd = $enforcer . " key ds-seen --zone " . $drec[0]->{"rrdn"} . " --keytag " .
+    $drec[0]->{"keytag"};
+
+if ( defined($opt_n) ) {
+    print "Dry run.  Would have executed $cmd.\n";
+} else {
+    $pid = open3($input,$err,0,$cmd);
+    waitpid($pid,0);
+    $status= $? >> 8;
+
+    if ( $status != 0 ) {
+	print "$0: FAILED: $cmd\nOutput:";
+	while ( !eof($err) ) {
+	    $_=<$err>;
+	    print $_;
+	}
+	print "key states:\n";
+
+	`$enforcer key list -v`;
+	do_exit(-1,$diag,$opt_n);
+    }
+}
+
+
+# stop here if we're keeping the old keys
+
+do_exit(0,$diag,$opt_n) if ( defined($opt_k) );
+
+# delete old keys
+
+for ($i=0; exists($oldrec->[$i]{digest}); $i++) {
+    print "Deleting old key " . $oldrec->[$i]{digest} . "...\n";
+    if ( defined($opt_n) ) {
+	print "But this is a dry run.  Not deleting.\n";
+    } else {
+	delete_old_key($drec[0]->{rrdn},$oldrec->[$i]{digest},$username,$password);
+    }
+}
+
+print "Issuing ds-gone...";
+
+$cmd = $enforcer . " key ds-gone --zone " . $drec[0]->{"rrdn"} . " --keytag " .
+    $oldrec->[0]{keyTag};
+
+if ( defined($opt_n) ) {
+    print "But this is a dry run.  Would have issued $cmd.\n";
+} else {
+    $pid = open3(\*STDIN,$output,$err,$cmd);
+    waitpid($pid,0);
+    $status= $? >> 8;
+
+    if ( $status != 0 ) {
+	print "$0: FAILED: $cmd\nOutput:";
+	while ( !eof($err) ) {
+	    $_=<$err>;
+	    print $_;
+	    print "Key states:\n";
+	    `$enforcer key list -v`;
+	}
+	do_exit(-1,$diag, $opt_n);
+    }
+}
+
+print "Finished.\n";
+
+do_exit(0,$diag,$opt_n);
+
+
+__END__
+
+=head1 NAME
+
+ods-wrapper - install new DS keys into GKG.NET and remove old ones.
+
+=head1 SYNOPSIS
+
+  ods-wrapper [ -c conffile ] [-nk] < DNSKEY
+
+
+=head1 DESCRIPTION
+
+ods-wrapper is a program that is intended to be called by ods-enforcer
+when a key signing key rolls over.  It can be called automatically, if
+configured in opendnssec's conf.xml file with <DelegatedSignerSubmitCommand>.
+To run manually, one can make use of ods-enforcer as follows:
+  % ods-enforcer key export -z {zonename} -e ready -t ksk | ods-wrapper
+
+When used with no options, ods-wrapper will install new keys and delete
+old ones.  If called with -k, old keys will not be deleted.  If called
+with -n, a dry run will take place.
+
+This program reads a configuration file to determine a number of
+parameters.  By default, these are stored in a file: /etc/gkg.conf.
+
+It takes the following form:
+
+  username=yournamehere
+  password=secrethere
+  maxsiglife=nnnnn (integer time in seconds)
+  enforcer=/usr/local/sbin/ods-enforcer
+  admin=root
+
+If maxsiglife is ommitted, a value of 3456000 is used.  enforcer
+indicates where ods-enforcer is.  admin is where the log of the
+transaction should be sent to.  If admin is omitted, email will be
+sent to root.  If enforcer is omitted, /usr/local/sbin/ods-enforcer is
+used.
+
+=head1 SEE ALSO
+
+gkgadd
+gkgrm
+https://www.gkg.net/ws/ds.html
+ods-enforcer
+
+=head1 AUTHOR
+
+Eliot Lear, <lear@ofcourseimright.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2017 by Eliot Lear
+
+All rights reserved.
+
+ WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+
+  EARLY CODE.  This code can and will change, and it should change.
+  Don't use on important domains YET.
+  
+ WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+
+ Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+ Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ POSSIBILITY OF SUCH DAMAGE.
+
+=cut
