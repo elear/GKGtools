@@ -16,7 +16,7 @@ WriteMakefile(
     ABSTRACT_FROM     => 'lib/GKG/GKGtools.pm', # retrieve abstract from module
     AUTHOR            => 'Eliot Lear <lear@ofcourseimright.com>',
     LICENSE           => 'bsd',
-    EXE_FILES         => [ 'bin/gkgrm', 'bin/gkgls', 'bin/gkgadd' ],
+    EXE_FILES         => [ 'bin/gkgrm', 'bin/gkgls', 'bin/gkgadd', 'bin/ods-wrapper' ],
     #Value must be from legacy list of licenses here
     #http://search.cpan.org/perldoc?Module%3A%3ABuild%3A%3AAPI
 );

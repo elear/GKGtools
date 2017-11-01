@@ -7,3 +7,4 @@ lib/GKG/GKGtools.pm
 bin/gkgls
 bin/gkgrm
 bin/gkgadd
+bin/ods-wrapper

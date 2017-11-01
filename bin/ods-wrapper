@@ -118,9 +118,20 @@ if (  defined ($opt_n) ) {
     if ( write_dsrec($username,$password,@drec) != 0 ) {
 	do_exit(-1,$diag,$opt_n);
     }
-    print "Wrote new keys.  Now issuing ds-seen...\n";
+    print "Wrote new keys.  Now issuing ds-submit...\n";
 }
 
+
+$cmd = $enforcer . " key ds-submit --zone " . $drec[0]->{"rrdn"} . " --keytag " .
+    $drec[0]->{"keytag"};
+
+if ( defined($opt_n) ) {
+    print "Dry run.  Would have executed $cmd.\n";
+} else {
+    $pid = open3($input,$err,0,$cmd);
+    waitpid($pid,0);
+    # not sure i care about response here... 
+}
 # send ds-seen for new keys
 
 $cmd = $enforcer . " key ds-seen --zone " . $drec[0]->{"rrdn"} . " --keytag " .
@@ -139,9 +150,6 @@ if ( defined($opt_n) ) {
 	    $_=<$err>;
 	    print $_;
 	}
-	print "key states:\n";
-
-	`$enforcer key list -v`;
 	do_exit(-1,$diag,$opt_n);
     }
 }
@@ -179,8 +187,6 @@ if ( defined($opt_n) ) {
 	while ( !eof($err) ) {
 	    $_=<$err>;
 	    print $_;
-	    print "Key states:\n";
-	    `$enforcer key list -v`;
 	}
 	do_exit(-1,$diag, $opt_n);
     }

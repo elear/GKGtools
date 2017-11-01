@@ -10,6 +10,9 @@ Currently several programs are installed:
    adds it to the list of DS keys on GKG.NET.
  o gkgls domain [domain...] lists out the DS keys for given domains
  o gkgrm domain HASH removes a DS key matching a given hash
+ o ods-wrapper - this is an EARLY version of the wrapper one would use
+                 from ods-enforcer.  IT HAS BUGS.  Do not call directly
+		 from enforcer yet!!!
 
 Each of these programs takes an optional [-c conffile].
 
