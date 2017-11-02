@@ -115,7 +115,7 @@ sub get_keys {
 	if ( $response->code eq "404" ) { # 404 means no records
 	    return undef;		  # it's not fatal.
 	}
-	print "Error: " . $response->message . "\n" ; # more serious
+	print "get_keys: GET $uri" . ":" . $response->message . "\n" ; # more serious
 	return undef;
     }
     return decode_json($response->content);
