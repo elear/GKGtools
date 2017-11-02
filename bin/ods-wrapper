@@ -52,20 +52,23 @@ sub do_exit {
     my $val=shift(@_);
     my $msg=shift(@_);
     my $opt_n=shift(@_);
-
+    my $opt_q=shift(@_);
+    
     select \*STDOUT;
     if ( $opt_n ) {
 	print $msg;
 	exit $val;
     }
     
-    open(my $m, "|mail $admin");
-    print $m $msg;
-    close($m);
+    if ( $val != 0 && $opt_q != 1 ) {
+	open(my $m, "|mail $admin");
+	print $m $msg;
+	close($m);
+    }
     exit $val;
 }
 
-our($opt_c, $opt_k, $opt_n);
+our($opt_c, $opt_k, $opt_n, $opt_q);
 my($username, $password, $i, $j, $cmd, $oldrec, @drec, $pid, $input,
    $output, $err, $status, $diag);
 
@@ -73,7 +76,7 @@ open(my $LOG, '>', \$diag) or die "$0: can't redirect to a variable: $!";
 
 select $LOG;
 
-getopts("c:kn");
+getopts("c:knq");
 
 if ( defined($opt_c) ) {
     $gkg_conffile= $opt_c;
@@ -92,7 +95,7 @@ print "New key " . $drec[0]->{"digest"} . " for domain " . $drec[0]->{"rrdn"} . 
 
 if ( get_whois($drec[0]->{"rrdn"},$username,$password) != 0) {
     print "Not a GKG domain.\n";
-    do_exit(0, $diag, $opt_n);
+    do_exit(0, $diag, $opt_n, $opt_q);
 }
 
 # Keep track of old keys
@@ -110,18 +113,6 @@ if ( ! defined($oldrec) && exists($oldrec->[0]{digest}) ) {
     }
 }
 
-# add new keys
-
-if (  defined ($opt_n) ) {
-    print "Dry run.  Skipping write.\n";
-} else {
-    if ( write_dsrec($username,$password,@drec) != 0 ) {
-	do_exit(-1,$diag,$opt_n);
-    }
-    print "Wrote new keys.  Now issuing ds-submit...\n";
-}
-
-
 $cmd = $enforcer . " key ds-submit --zone " . $drec[0]->{"rrdn"} . " --keytag " .
     $drec[0]->{"keytag"};
 
@@ -132,6 +123,19 @@ if ( defined($opt_n) ) {
     waitpid($pid,0);
     # not sure i care about response here... 
 }
+
+# add new keys
+
+if (  defined ($opt_n) ) {
+    print "Dry run.  Skipping write.\n";
+} else {
+    if ( write_dsrec($username,$password,@drec) != 0 ) {
+	do_exit(-1,$diag,$opt_n, $opt_q);
+    }
+    print "Wrote new keys.  Now issuing ds-submit...\n";
+}
+
+
 # send ds-seen for new keys
 
 $cmd = $enforcer . " key ds-seen --zone " . $drec[0]->{"rrdn"} . " --keytag " .
@@ -150,14 +154,14 @@ if ( defined($opt_n) ) {
 	    $_=<$err>;
 	    print $_;
 	}
-	do_exit(-1,$diag,$opt_n);
+	do_exit(-1,$diag,$opt_n, $opt_q);
     }
 }
 
 
 # stop here if we're keeping the old keys
 
-do_exit(0,$diag,$opt_n) if ( defined($opt_k) );
+do_exit(0,$diag,$opt_n, $opt_q) if ( defined($opt_k) );
 
 # delete old keys
 
@@ -170,15 +174,15 @@ for ($i=0; exists($oldrec->[$i]{digest}); $i++) {
     }
 }
 
-print "Issuing ds-gone...";
+print "Issuing ds-retract...";
 
-$cmd = $enforcer . " key ds-gone --zone " . $drec[0]->{"rrdn"} . " --keytag " .
+$cmd = $enforcer . " key ds-retract --zone " . $drec[0]->{"rrdn"} . " --keytag " .
     $oldrec->[0]{keyTag};
 
 if ( defined($opt_n) ) {
     print "But this is a dry run.  Would have issued $cmd.\n";
 } else {
-    $pid = open3(\*STDIN,$output,$err,$cmd);
+    $pid = open3($input,$err,0,$cmd);
     waitpid($pid,0);
     $status= $? >> 8;
 
@@ -188,13 +192,41 @@ if ( defined($opt_n) ) {
 	    $_=<$err>;
 	    print $_;
 	}
-	do_exit(-1,$diag, $opt_n);
+    }
+}
+
+print "Issuing ds-gone...";
+
+$cmd = $enforcer . " key ds-gone --zone " . $drec[0]->{"rrdn"} . " --keytag " .
+    $oldrec->[0]{keyTag};
+
+if ( defined($opt_n) ) {
+    print "But this is a dry run.  Would have issued $cmd.\n";
+} else {
+    $pid = open3($input,$err,0,$cmd);
+    waitpid($pid,0);
+    $status= $? >> 8;
+
+    if ( $status != 0 ) {
+	print "$0: FAILED: $cmd\nOutput:";
+	while ( !eof($err) ) {
+	    $_=<$err>;
+	    print $_;
+	}
+	print "$0: Key states:\n";
+	$pid = open3($input,$err,0,"$enforcer key list -v");
+	waitpid($pid,0);
+	while ( !eof($err) ) {
+	    $_=<$err>;
+	    print $_;
+	}
+	do_exit(-1,$diag, $opt_n, $opt_q);
     }
 }
 
 print "Finished.\n";
 
-do_exit(0,$diag,$opt_n);
+do_exit(0,$diag,$opt_n,$opt_q);
 
 
 __END__
@@ -205,7 +237,7 @@ ods-wrapper - install new DS keys into GKG.NET and remove old ones.
 
 =head1 SYNOPSIS
 
-  ods-wrapper [ -c conffile ] [-nk] < DNSKEY
+  ods-wrapper [ -c conffile ] [-nkq] < DNSKEY
 
 
 =head1 DESCRIPTION
@@ -216,9 +248,10 @@ configured in opendnssec's conf.xml file with <DelegatedSignerSubmitCommand>.
 To run manually, one can make use of ods-enforcer as follows:
   % ods-enforcer key export -z {zonename} -e ready -t ksk | ods-wrapper
 
-When used with no options, ods-wrapper will install new keys and delete
-old ones.  If called with -k, old keys will not be deleted.  If called
-with -n, a dry run will take place.
+When used with no options, ods-wrapper will install new keys and
+delete old ones.  If called with -k, old keys will not be deleted.  If
+called with -n, a dry run will take place.  If called with -q, no
+output will be generated unless an error occurs.
 
 This program reads a configuration file to determine a number of
 parameters.  By default, these are stored in a file: /etc/gkg.conf.
