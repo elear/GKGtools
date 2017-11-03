@@ -101,21 +101,21 @@ sub do_unlock {
 }    
 
 
+our($opt_c, $opt_k, $opt_n, $opt_q);
+
 sub do_exit {
     my $val=shift(@_);
     my $msg=shift(@_);
-    my $opt_nn=shift(@_);
-    my $opt_qq=shift(@_);
 
     do_unlock;
 
     select \*STDOUT;
-    if ( $opt_nn ) {
+    if ( $opt_n ) {
 	print $msg;
 	exit $val;
     }
     
-    if ( $val != 0 && ! defined($opt_qq) ) {
+    if ( $val != 0 && ! defined($opt_q) ) {
 	open(my $m, "|mail $admin");
 	print $m $msg;
 	close($m);
@@ -123,7 +123,6 @@ sub do_exit {
     exit $val;
 }
 
-our($opt_c, $opt_k, $opt_n, $opt_q);
 my($username, $password, $i, $j, $cmd, $oldrec, @drec, $pid, $input,
    $output, $err, $status, $diag);
 
@@ -139,7 +138,7 @@ if ( defined($opt_c) ) {
 
 if (! defined $opt_n) {
     if ( do_lock != 0 ) {
-	do_exit(-1, $diag, $opt_n, $opt_q);
+	do_exit(-1, $diag);
     }
 }
 
@@ -156,13 +155,13 @@ print "New key " . $drec[0]->{"digest"} . " for domain " . $drec[0]->{"rrdn"} . 
 
 if ( get_whois($drec[0]->{"rrdn"},$username,$password) != 0) {
     print "Not a GKG domain.\n";
-    do_exit(0, $diag, $opt_n, $opt_q);
+    do_exit(0, $diag );
 }
 
 # Keep track of old keys
 $oldrec=get_keys($drec[0]->{"rrdn"},$username,$password);
 
-do_exit(-1, $diag, $opt_n, $opt_q) if ( ! defined($oldrec) );
+do_exit(-1, $diag ) if ( ! defined($oldrec) );
 
 # figure out which old keys need to be deleted.  there may be numerous.
 
@@ -189,7 +188,7 @@ for ($j=0; $j <= $#drec ;$j++) {
 
 if ( $keystoadd == 0 ) {
     print "No keys to add.\n";
-    do_exit(-1,$diag, $opt_n, $opt_q); # exit with -1 because we shouldn't have
+    do_exit(-1,$diag ); # exit with -1 because we shouldn't have
                                       # been called at all.
 } else {
     print "Found $keystoadd keys.\n";
@@ -213,7 +212,7 @@ if (  defined ($opt_n) ) {
     print "Dry run.  Skipping write.\n";
 } else {
     if ( write_dsrec($username,$password,@drec) != 0 ) {
-	do_exit(-1,$diag, $opt_n, $opt_q);
+	do_exit(-1,$diag);
     }
     print "Wrote new keys.  Now issuing ds-submit...\n";
 }
@@ -237,14 +236,14 @@ if ( defined($opt_n) ) {
 	    $_=<$err>;
 	    print $_;
 	}
-	do_exit(-1,$diag, $opt_n, $opt_q);
+	do_exit(-1,$diag );
     }
 }
 
 
 # stop here if we're keeping the old keys
 
-do_exit(0,$diag, $opt_n, $opt_q) if ( defined($opt_k) );
+do_exit(0,$diag) if ( defined($opt_k) );
 
 # delete old keys
 
@@ -303,13 +302,13 @@ if ( defined($opt_n) ) {
 	    $_=<$err>;
 	    print $_;
 	}
-	do_exit(-1,$diag, $opt_n, $opt_q);
+	do_exit(-1,$diag);
     }
 }
 
 print "Finished.\n";
 
-do_exit(0,$diag,$opt_n,$opt_q);
+do_exit(0,$diag);
 
 
 __END__
