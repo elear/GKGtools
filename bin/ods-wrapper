@@ -40,27 +40,82 @@
 use GKG::GKGtools qw(readconf parse_dnskey get_keys get_whois write_dsrec delete_old_key $gkg_conffile $admin $enforcer);
 use IPC::Open3 qw(open3);
 use Getopt::Std qw(getopts);
+use Fcntl qw(:flock);
 use strict;
 use warnings;
+
+
+my $keystoadd=0;
+my $lockfile;
 
 sub HELP_MESSAGE() {
     print "Usage: $0 [-c config file ] [-kn]\n\t-k keeps old keys\n\t-n is a dry run\n";
     exit;
 }
 
+# we don't want multiple copies of this script running at once.
+
+my $rundir= "/var/run/ods-wrapper";
+my $lock= $rundir . "/lock";
+
+sub do_lock {
+    my $pid=0;
+
+    print "locking..\n";
+    if ( ! -d $rundir ) {
+	if (mkdir($rundir, 0755) != 0 ) {
+	    print "mkdir: $!";
+	    return -1;
+	}
+    }
+
+# see if the files there and read the pid
+
+    if ( -e $lock ) {
+	if ( open($lockfile,"<$lock") ) {
+	    $pid=<$lockfile>;
+	    chomp($pid);
+	    close($lockfile);
+	}
+    }
+    
+    if (! open($lockfile,">$lock") ) {
+	print "Cannot open $lock: $!\n";
+	return -1;
+    }
+
+    if (! flock($lockfile, LOCK_EX) ) {
+	print "Unable to get lock on $lock.\n";
+	return -1;
+    }
+
+    print $lockfile "$$\n";
+    return 0;
+}
+
+# unlock and remove lockfile.
+
+sub do_unlock {
+    unlink $lock;
+    close($lock);
+}    
+
+
 sub do_exit {
     my $val=shift(@_);
     my $msg=shift(@_);
-    my $opt_n=shift(@_);
-    my $opt_q=shift(@_);
-    
+    my $opt_nn=shift(@_);
+    my $opt_qq=shift(@_);
+
+    do_unlock;
+
     select \*STDOUT;
-    if ( $opt_n ) {
+    if ( $opt_nn ) {
 	print $msg;
 	exit $val;
     }
     
-    if ( $val != 0 && $opt_q != 1 ) {
+    if ( $val != 0 && ! defined($opt_qq) ) {
 	open(my $m, "|mail $admin");
 	print $m $msg;
 	close($m);
@@ -82,6 +137,11 @@ if ( defined($opt_c) ) {
     $gkg_conffile= $opt_c;
 }
 
+if (! defined $opt_n) {
+    if ( do_lock != 0 ) {
+	do_exit(-1, $diag, $opt_n, $opt_q);
+    }
+}
 
 ($username,$password) = readconf;
 
@@ -89,6 +149,7 @@ if ( defined($opt_c) ) {
 
 @drec=parse_dnskey(\*STDIN); # get the record
 
+print "$0 called with process id $$\n";
 print "New key " . $drec[0]->{"digest"} . " for domain " . $drec[0]->{"rrdn"} . "\n";
 
 # check to see if this domain is managed by GKG.NET.
@@ -101,17 +162,39 @@ if ( get_whois($drec[0]->{"rrdn"},$username,$password) != 0) {
 # Keep track of old keys
 $oldrec=get_keys($drec[0]->{"rrdn"},$username,$password);
 
-# mark existing records
+do_exit(-1, $diag, $opt_n, $opt_q) if ( ! defined($oldrec) );
 
-if ( ! defined($oldrec) && exists($oldrec->[0]{digest}) ) {
-    for ($i=0; exists($oldrec->[$i]{digest}); $i++) {
-	for ($j=0; $j <= $#drec ;$j++) {
-	    if ($oldrec->[$i]{keyTag} eq $drec[$j]->{"keytag"} ) {
-		$drec[$j]->{"ignore"}="yes";
-	    }
+# figure out which old keys need to be deleted.  there may be numerous.
+
+for ($i=0; exists($oldrec->[$i]{digest}); $i++) {
+    $oldrec->[$i]{digest} =~ tr/a-z/A-Z/;
+    for ($j=0; $j <= $#drec ;$j++) {
+	if ($oldrec->[$i]{digest} eq $drec[$j]->{"digest"} ) {
+	    $drec[$j]->{"ignore"}="yes";
+	    print "Not deleting new key " .  $drec[$j]->{"digest"} . "\n";
 	}
     }
 }
+
+# We know which keys we won't delete (if any).  But are there any keys
+# that need installing?
+
+for ($j=0; $j <= $#drec ;$j++) {
+    if ( ! exists($drec[$j]->{"ignore"})) {
+	 $keystoadd=$keystoadd+1;
+    }
+}
+
+# if we found no keys to add, stop.
+
+if ( $keystoadd == 0 ) {
+    print "No keys to add.\n";
+    do_exit(-1,$diag, $opt_n, $opt_q); # exit with -1 because we shouldn't have
+                                      # been called at all.
+} else {
+    print "Found $keystoadd keys.\n";
+}
+    
 
 $cmd = $enforcer . " key ds-submit --zone " . $drec[0]->{"rrdn"} . " --keytag " .
     $drec[0]->{"keytag"};
@@ -130,7 +213,7 @@ if (  defined ($opt_n) ) {
     print "Dry run.  Skipping write.\n";
 } else {
     if ( write_dsrec($username,$password,@drec) != 0 ) {
-	do_exit(-1,$diag,$opt_n, $opt_q);
+	do_exit(-1,$diag, $opt_n, $opt_q);
     }
     print "Wrote new keys.  Now issuing ds-submit...\n";
 }
@@ -154,14 +237,14 @@ if ( defined($opt_n) ) {
 	    $_=<$err>;
 	    print $_;
 	}
-	do_exit(-1,$diag,$opt_n, $opt_q);
+	do_exit(-1,$diag, $opt_n, $opt_q);
     }
 }
 
 
 # stop here if we're keeping the old keys
 
-do_exit(0,$diag,$opt_n, $opt_q) if ( defined($opt_k) );
+do_exit(0,$diag, $opt_n, $opt_q) if ( defined($opt_k) );
 
 # delete old keys
 

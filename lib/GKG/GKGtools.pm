@@ -115,7 +115,7 @@ sub get_keys {
 	if ( $response->code eq "404" ) { # 404 means no records
 	    return undef;		  # it's not fatal.
 	}
-	print "get_keys: GET $uri" . ":" . $response->message . "\n" ; # more serious
+	print "get_keys: GET $uri" . ": " . $response->message . "\n" ; # more serious
 	return undef;
     }
     return decode_json($response->content);
@@ -163,7 +163,7 @@ sub post_request {
     $req->content($j);
     $response=$lwp->request($req); # execute request
     if ($response->code ne "201") { # 201 indicates success.
-	print "Error: " . $response->message . "\n" ;
+	print "post_request: $uri" . ": " . $response->message . "\n" ;
 	return -1;
     }
     return 0;
@@ -207,6 +207,8 @@ sub to_dnsrec {
     my $alg=$drec[5];
     my $digtype=$drec[6];
     my $digest=$drec[7];
+    $digest =~ tr/a-z/A-Z/; # convert to upper case
+    
     return ({ rrdn => $n, domain => $domain, keytag => $keytag, alg => $alg,
 	    digtype => $digtype, digest => $digest} );
 }
@@ -242,7 +244,6 @@ sub write_dsrec {
 	if ( ! exists($drec[$i]->{"ignore"}) ) {
 	    my $j=mkjson($drec[$i]);
 	    return -1 if post_request($drec[$i]->{"rrdn"},$j,$username,$password) == -1;
-	    $drec[$i]->{"installed"} = "TRUE";
 	} else {
 	    print "ignoring " . $drec[$i]->{"keytag"} . "\n";
 	    $err=-1;
@@ -265,7 +266,7 @@ sub delete_old_key {
     $req->authorization_basic($username,$password);
     $response=$lwp->request($req); # execute request
     if ($response->code ne "204") { # 204 indicates success.
-	print "Error: " . $response->message . "\n" ;
+	print "delete_old_key: $uri" . ": " . $response->message . "\n" ;
 	return -1;
     }
     return 0;
