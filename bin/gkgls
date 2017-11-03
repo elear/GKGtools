@@ -76,18 +76,21 @@ gkgls - list keys installed on GKG.NET.
 gkgls prints DS records, keytags, digests, and max signature lifetimes
 that are installed for the domains specified on the command line.
 
-This program reads the username, password, and optionally maxsiglife
-used to call out to GKG.NET.  By default, these are stored in a file:
+This program reads the username, password, and optionally maxsiglife,
+admin, and enforcer configuration settings to contact GKG and
+opendnssec, respectively.  By default, these are stored in a file:
 /etc/gkg.conf.
 
 It takes the following form:
 
   username=yournamehere
   password=secrethere
-  maxsiglife=nnnnn (integer time in seconds)
+  maxsiglife=3456000
+  admin=root
+  enforcer=/usr/local/sbin/ods-enforcer
 
-
-If maxsiglife is ommitted, a value of 3456000 is used.
+Defaults for values other than username and password are as indicated above.
+maxsiglife is in seconds.
 
 
 =head1 SEE ALSO
@@ -95,6 +98,7 @@ If maxsiglife is ommitted, a value of 3456000 is used.
 gkgadd
 gkgrm
 https://www.gkg.net/ws/ds.html
+ods-wrapper
 
 =head1 AUTHOR
 

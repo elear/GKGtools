@@ -37,7 +37,7 @@
 # old key from parent zone
 
 
-use GKG::GKGtools qw(readconf parse_dnskey get_keys get_whois write_dsrec delete_old_key $gkg_conffile $admin $enforcer);
+use GKG::GKGtools qw(readconf parse_dnskey get_keys get_whois write_dsrec delete_old_key ds_is_seen $gkg_conffile $admin $enforcer);
 use IPC::Open3 qw(open3);
 use Getopt::Std qw(getopts);
 use Fcntl qw(:flock);
@@ -49,7 +49,7 @@ my $keystoadd=0;
 my $lockfile;
 
 sub HELP_MESSAGE() {
-    print "Usage: $0 [-c config file ] [-kn]\n\t-k keeps old keys\n\t-n is a dry run\n";
+    print "Usage: $0 [-c config file ] [-knq]\n\t-k keeps old keys\n\t-n is a dry run\n\t-q means produce no output unless there is an error.\n";
     exit;
 }
 
@@ -214,11 +214,17 @@ if (  defined ($opt_n) ) {
     if ( write_dsrec($username,$password,@drec) != 0 ) {
 	do_exit(-1,$diag);
     }
-    print "Wrote new keys.  Now issuing ds-submit...\n";
+    print "Wrote new keys.  Now looking for them...\n";
+
+    for (my $dscount=0; ds_is_seen($drec[0]->{"rrdn"},$drec[0]->{"digest"}) != 0 && $dscount < 10; $dscount++ ) {
+	print "Not seeing DS record. Sleeping 100s";
+	sleep 10;
+    }
 }
 
-
 # send ds-seen for new keys
+
+print "Issuing ds-seen...\n";
 
 $cmd = $enforcer . " key ds-seen --zone " . $drec[0]->{"rrdn"} . " --keytag " .
     $drec[0]->{"keytag"};

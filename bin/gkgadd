@@ -85,25 +85,13 @@ gkgadd - add a DS key to GKG.NET.
 gkgadd takes as input a DNSKEY record for a Key Signing Key (KSK) and
 installs it on GKG.NET.  N.B., it is critically important that the zone
 be properly signed with the key PRIOR to installing the KSK.  Tools such
-as openddnsec do this for you.
-
-This program reads the username, password, and optionally maxsiglife
-used to call out to GKG.NET.  By default, these are stored in a file:
-/etc/gkg.conf.
-
-It takes the following form:
-
-  username=yournamehere
-  password=secrethere
-  maxsiglife=nnnnn (integer time in seconds)
-
-
-If maxsiglife is ommitted, a value of 3456000 is used.
-
+as openddnsec do this for you.  /etc/gkg.conf must be configured prior
+to using this tool.
 
 =head1 SEE ALSO
 
 https://www.gkg.net/ws/ds.html
+GKG::GKGTools(3pm)
 
 =head1 AUTHOR
 

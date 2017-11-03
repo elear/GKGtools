@@ -7,11 +7,14 @@ WriteMakefile(
     VERSION_FROM      => 'lib/GKG/GKGtools.pm', # finds $VERSION, requires EU::MM from perl >= 5.5
     PREREQ_PM         => {
 	"Net::DNS::RR" => 0,
+	"Net::DNS::Resolver" => 0,
+	"Net::DNS::Packet" => 0,
          "JSON::XS" => 0,
          "HTTP::Request" => 0,
          "LWP::UserAgent" =>0,
 	 "IPC::Open3" => 0,
 	 "Getopt::Std" => 0,
+	 "Fcntl" => 0,
     },
     ABSTRACT_FROM     => 'lib/GKG/GKGtools.pm', # retrieve abstract from module
     AUTHOR            => 'Eliot Lear <lear@ofcourseimright.com>',

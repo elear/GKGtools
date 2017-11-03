@@ -3,6 +3,8 @@ package GKG::GKGtools;
 use HTTP::Request;
 use LWP::UserAgent;
 use Net::DNS::RR;
+use Net::DNS::Packet;
+use Net::DNS::Resolver;
 use JSON::XS;
 use POSIX;
 use strict;
@@ -21,10 +23,10 @@ our @ISA = qw(Exporter);
 our %EXPORT_TAGS = ( 'all' => [ qw($gkg_conffile $admin $enforcer
 ) ] );
 
-our @EXPORT_OK = qw(readconf get_keys write_dsrec get_whois delete_old_key parse_dnskey $gkg_conffile $admin $enforcer);
+our @EXPORT_OK = qw(readconf get_keys write_dsrec get_whois delete_old_key parse_dnskey ds_is_seen $gkg_conffile $admin $enforcer);
 
 
-our $VERSION = '0.02';
+our $VERSION = '1.0b1';
 
 our $gkg_conffile = "/etc/gkg.conf";
 our $maxsiglife = 3456000;
@@ -229,6 +231,39 @@ sub parse_dnskey {
     }
     return (@drec);
 }
+
+
+# Query a DS key for a domain and confirm that the digest is present.
+
+sub ds_is_seen {
+    my $domain=shift(@_);
+    my $digest=shift(@_);
+    my $res = Net::DNS::Resolver->new;
+    my $rr;
+    my $tmpdig;
+    my $packet = $res->search($domain,'DS');
+
+    if ( ! defined($packet) ) {
+	return -1;
+    }
+
+    # we got an answer, now cycle through RRs and spot the right rec.
+    my @answers= $packet->answer;
+
+    foreach $rr ( @answers ) {
+	next if ($rr->type ne 'DS');
+
+	# now we have a DS record.
+	$tmpdig=$rr->digest;
+	$tmpdig=~tr/a-z/A-Z/;
+	
+	if ( $tmpdig eq $digest ) {
+	    return 0;
+	}
+    }
+    return -1;
+}
+
 
 # write a DS record to GKG.NET.
 
